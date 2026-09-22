@@ -139,6 +139,67 @@ jsondiff run --help
 
 Please refer to the article [JSON Diff Kit: A Combination of Several Simple Algorithms](https://blog.rexskz.info/json-diff-kit-a-combination-of-several-simple-algorithms.html?cc_lang=en).
 
+### Diff Model Semantics
+
+The `Differ` emits a pair of row-aligned line arrays (`DiffResult[]`). The
+model guarantees the following invariants, which are continuously verified by
+property tests (see `src/diff-model.spec.ts`):
+
+- **Line numbers**: on each side, the visible (non-empty) lines are numbered
+  consecutively from `1`; empty lines are alignment placeholders and carry no
+  line number.
+- **Common context**: rows that are `equal` on both sides have identical text
+  and refer to the same logical location. Object keys and container structure
+  must match exactly; array indices of common context may legitimately shift
+  when elements are inserted or removed before them (e.g. under LCS).
+- **Replayability**: the right-hand value can be rebuilt from the diff
+  operations plus the unchanged context of the left-hand side (and vice
+  versa), so a diff never loses data. Object key order in the output follows
+  the `preserveKeyOrder` configuration (sorted by default); it is never
+  derived from accidental JavaScript property enumeration order.
+- **Folding**: with `hideUnchangedLines`, segments tile the whole model
+  without gaps or overlaps, placeholders only hide `equal` rows, and their
+  exact bounds are determined by `threshold` / `margin` (a run of unchanged
+  lines is hidden iff its length is at least `threshold` and greater than
+  `2 * margin + 1`). Expanding every placeholder restores the uncollapsed
+  model.
+- **Inline segments**: `getInlineDiff` segments tile `[0, text.length)` per
+  side, never overlap, and replaying them (dropping `remove` spans, inserting
+  `add` spans) reproduces the right-hand text exactly.
+
+When several equally optimal LCS paths exist for arrays, the differ does not
+promise a specific one; the guaranteed property is minimality of the edit
+count (`removes + adds = (n - lcs) + (m - lcs)` with `showModifications`
+disabled, potentially less when modifications are merged).
+
+### Complexity
+
+- Array diff: `normal` is `O(LEN)`, `lcs` is `O(LEN^2)` in time and space.
+- Inline diff: `O((N + M) * D)` Myers diff per modified line, where `D` is the
+  number of changed tokens (characters or words).
+- Folding (`getSegments`) is a single `O(rows)` pass.
+
+### Compatibility Notes
+
+Two model-level defects were fixed while pinning these contracts; both only
+change output that was previously corrupted:
+
+- `lcs` array diff no longer repeats the parent key (`"key": [`) on nested
+  array elements; nested arrays now open with a plain `[` line.
+- `getInlineDiff` no longer emits segments past the end of a line when a
+  change hunk is not preceded by common content (previously it could misread
+  raw `fast-myers-diff` hunks as common blocks).
+
+### Property Tests
+
+`src/diff-model.spec.ts` combines a fixed-seed JSON generator and mutator
+(object key add/remove/modify, array insert/delete at head/tail/middle,
+scalar type changes, single-character edits in long strings, deep subtree
+replacement) with the contracts above and an in-test patch interpreter. Every
+failure is automatically shrunk to a minimal pair of JSON values and fold
+parameters before being reported. The tests are deterministic: no network, no
+real-clock waits and no filesystem-order dependence.
+
 ## Features & Roadmap
 
 - [x] Provide a `Differ` class and a `Viewer` component

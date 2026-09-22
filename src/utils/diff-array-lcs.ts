@@ -13,8 +13,6 @@ import { addArrayClosingBrackets, addArrayOpeningBrackets, addMaxDepthPlaceholde
 const lcs = (
   arrLeft: any[],
   arrRight: any[],
-  keyLeft: string,
-  keyRight: string,
   level: number,
   options: DifferOptions,
 ): [DiffResult[], DiffResult[]] => {
@@ -94,7 +92,7 @@ const lcs = (
         tLeft = concat(tLeft, reversedLeft.reverse(), true);
         tRight = concat(tRight, reversedRight.reverse(), true);
       } else if (type === 'array') {
-        const [l, r] = diffArrayLCS(arrLeft[i - 1], arrRight[j - 1], keyLeft, keyRight, level + 1, options);
+        const [l, r] = diffArrayLCS(arrLeft[i - 1], arrRight[j - 1], '', '', level + 1, options);
         tLeft = concat(tLeft, l.reverse(), true);
         tRight = concat(tRight, r.reverse(), true);
       } else if (type === 'object') {
@@ -129,7 +127,7 @@ const lcs = (
         const typeRight = getType(arrRight[j - 1]);
         if (typeLeft === typeRight) {
           if (typeLeft === 'array') {
-            const [l, r] = diffArrayLCS(arrLeft[i - 1], arrRight[j - 1], keyLeft, keyRight, level + 1, options);
+            const [l, r] = diffArrayLCS(arrLeft[i - 1], arrRight[j - 1], '', '', level + 1, options);
             tLeft = concat(tLeft, l.reverse(), true);
             tRight = concat(tRight, r.reverse(), true);
           } else if (typeLeft === 'object') {
@@ -214,7 +212,7 @@ const diffArrayLCS = (
   if (level >= (options.maxDepth || Infinity)) {
     addMaxDepthPlaceholder(linesLeft, linesRight, level);
   } else {
-    const [tLeftReverse, tRightReverse] = lcs(arrLeft, arrRight, keyLeft, keyRight, level, options);
+    const [tLeftReverse, tRightReverse] = lcs(arrLeft, arrRight, level, options);
     linesLeft = concat(linesLeft, tLeftReverse);
     linesRight = concat(linesRight, tRightReverse);
   }
