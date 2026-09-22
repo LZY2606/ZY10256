@@ -94,7 +94,9 @@ const lcs = (
         tLeft = concat(tLeft, reversedLeft.reverse(), true);
         tRight = concat(tRight, reversedRight.reverse(), true);
       } else if (type === 'array') {
-        const [l, r] = diffArrayLCS(arrLeft[i - 1], arrRight[j - 1], keyLeft, keyRight, level + 1, options);
+        // A nested array is an *element* here, it must not inherit the key of
+        // the enclosing object's array (that rendered the opener twice).
+        const [l, r] = diffArrayLCS(arrLeft[i - 1], arrRight[j - 1], '', '', level + 1, options);
         tLeft = concat(tLeft, l.reverse(), true);
         tRight = concat(tRight, r.reverse(), true);
       } else if (type === 'object') {
@@ -129,7 +131,7 @@ const lcs = (
         const typeRight = getType(arrRight[j - 1]);
         if (typeLeft === typeRight) {
           if (typeLeft === 'array') {
-            const [l, r] = diffArrayLCS(arrLeft[i - 1], arrRight[j - 1], keyLeft, keyRight, level + 1, options);
+            const [l, r] = diffArrayLCS(arrLeft[i - 1], arrRight[j - 1], '', '', level + 1, options);
             tLeft = concat(tLeft, l.reverse(), true);
             tRight = concat(tRight, r.reverse(), true);
           } else if (typeLeft === 'object') {
@@ -209,7 +211,7 @@ const diffArrayLCS = (
   linesLeft: DiffResult[] = [],
   linesRight: DiffResult[] = [],
 ): [DiffResult[], DiffResult[]] => {
-  addArrayOpeningBrackets(linesLeft, linesRight, keyLeft, keyRight, level)
+  addArrayOpeningBrackets(linesLeft, linesRight, keyLeft, keyRight, level);
 
   if (level >= (options.maxDepth || Infinity)) {
     addMaxDepthPlaceholder(linesLeft, linesRight, level);
@@ -219,7 +221,7 @@ const diffArrayLCS = (
     linesRight = concat(linesRight, tRightReverse);
   }
 
-  addArrayClosingBrackets(linesLeft, linesRight, level)
+  addArrayClosingBrackets(linesLeft, linesRight, level);
   return [linesLeft, linesRight];
 };
 

@@ -38,7 +38,10 @@ const findVisibleLines = (
   if (isExpandLine(startSegmentItem)) {
     startLine = startSegmentItem.start;
   } else {
-    startLine = startSegmentItem.start + Math.floor((viewportTop - accTop[startSegment]) / itemHeight);
+    startLine = Math.min(
+      startSegmentItem.end,
+      startSegmentItem.start + Math.floor((viewportTop - accTop[startSegment]) / itemHeight),
+    );
   }
   // end segment
   l = 0;
@@ -61,7 +64,10 @@ const findVisibleLines = (
   if (isExpandLine(endSegmentItem)) {
     endLine = endSegmentItem.end;
   } else {
-    endLine = endSegmentItem.start + Math.ceil((viewportBottom - accTop[endSegment]) / itemHeight);
+    endLine = Math.min(
+      endSegmentItem.end,
+      endSegmentItem.start + Math.ceil((viewportBottom - accTop[endSegment]) / itemHeight),
+    );
   }
   return [
     startSegment,

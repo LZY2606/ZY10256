@@ -23,7 +23,7 @@ const diffArrayNormal = (
 ): [DiffResult[], DiffResult[]] => {
   arrLeft = [...arrLeft];
   arrRight = [...arrRight];
-  addArrayOpeningBrackets(linesLeft, linesRight, keyLeft, keyRight, level)
+  addArrayOpeningBrackets(linesLeft, linesRight, keyLeft, keyRight, level);
 
   if (level >= (options.maxDepth || Infinity)) {
     addMaxDepthPlaceholder(linesLeft, linesRight, level);
@@ -168,7 +168,7 @@ const diffArrayNormal = (
     }
   }
 
-  addArrayClosingBrackets(linesLeft, linesRight, level)
+  addArrayClosingBrackets(linesLeft, linesRight, level);
   return [linesLeft, linesRight];
 };
 

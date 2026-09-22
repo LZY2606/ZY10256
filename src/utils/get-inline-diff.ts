@@ -1,4 +1,4 @@
-import { lcs as myersDiff } from 'fast-myers-diff';
+import { diff as myersDiff } from 'fast-myers-diff';
 
 export interface InlineDiffOptions {
   mode?: 'char' | 'word';
@@ -11,92 +11,113 @@ export interface InlineDiffResult {
   end: number;
 }
 
-const getOriginalIndices = (arr: string[], separatorLength: number) => {
-  const result: number[] = [];
-  let index = 0;
-  for (const item of arr) {
-    result.push(index);
-    index += item.length + separatorLength;
-  }
-  result.push(index - separatorLength);
-  return result;
-};
+const buildSegments = <T extends string | unknown[]>(
+  leftItems: T,
+  rightItems: T,
+  lengthOf: (items: T) => number,
+): [InlineDiffResult[], InlineDiffResult[]] => {
+  const resultL: InlineDiffResult[] = [];
+  const resultR: InlineDiffResult[] = [];
+  let lastL = 0;
+  let lastR = 0;
 
-const filterEmptyParts = (arr: InlineDiffResult[]) => {
-  return arr.filter(item => item.end > item.start);
+  const operations = [...myersDiff(leftItems, rightItems)] as Array<[number, number, number, number]>;
+  for (const [startL, endL, startR, endR] of operations) {
+    if (startL > lastL || startR > lastR) {
+      const commonLength = Math.min(startL - lastL, startR - lastR);
+      if (commonLength > 0) {
+        resultL.push({ start: lastL, end: lastL + commonLength });
+        resultR.push({ start: lastR, end: lastR + commonLength });
+        lastL += commonLength;
+        lastR += commonLength;
+      }
+      if (startL > lastL) {
+        resultL.push({ type: 'remove', start: lastL, end: startL });
+        lastL = startL;
+      }
+      if (startR > lastR) {
+        resultR.push({ type: 'add', start: lastR, end: startR });
+        lastR = startR;
+      }
+    }
+    const removedLength = endL - startL;
+    const addedLength = endR - startR;
+    if (removedLength > 0) {
+      resultL.push({ type: 'remove', start: startL, end: endL });
+      lastL = endL;
+    }
+    if (addedLength > 0) {
+      resultR.push({ type: 'add', start: startR, end: endR });
+      lastR = endR;
+    }
+  }
+
+  const totalL = lengthOf(leftItems);
+  const totalR = lengthOf(rightItems);
+  if (lastL < totalL || lastR < totalR) {
+    const commonLength = Math.min(totalL - lastL, totalR - lastR);
+    if (commonLength > 0) {
+      resultL.push({ start: lastL, end: lastL + commonLength });
+      resultR.push({ start: lastR, end: lastR + commonLength });
+      lastL += commonLength;
+      lastR += commonLength;
+    }
+  }
+  if (totalL > lastL) {
+    resultL.push({ type: 'remove', start: lastL, end: totalL });
+  }
+  if (totalR > lastR) {
+    resultR.push({ type: 'add', start: lastR, end: totalR });
+  }
+
+  return [
+    resultL.filter(item => item.end > item.start),
+    resultR.filter(item => item.end > item.start),
+  ];
 };
 
 const getInlineDiff = (l: string, r: string, options: InlineDiffOptions): [
   InlineDiffResult[],
   InlineDiffResult[]
 ] => {
-  let resultL: InlineDiffResult[] = [];
-  let resultR: InlineDiffResult[] = [];
-  let lastL = 0;
-  let lastR = 0;
-
   if (options.mode === 'word') {
     const wordSeparator = options.wordSeparator || ' ';
     const lArr = l.split(wordSeparator);
     const rArr = r.split(wordSeparator);
 
-    /**
-     * The iter array contains the information about replacement, which is an array of
-     * tuple `[startL, startR, length]`.
-     *
-     * e.g. `[1, 2, 3]` means replace `lArr[1...1+3]` to `rArr[2...2+3]` (include the end).
-     */
-    const iter = [...myersDiff(lArr, rArr)];
-
-    const separatorLength = wordSeparator.length;
-    const indicesL = getOriginalIndices(lArr, separatorLength);
-    const indicesR = getOriginalIndices(rArr, separatorLength);
-
-    for (const [sl, sr, length] of iter) {
-      if (sl > lastL) {
-        resultL.push({ type: 'remove', start: indicesL[lastL], end: indicesL[sl] });
+    const indicesOf = (arr: string[]) => {
+      const result: number[] = [];
+      let index = 0;
+      for (const item of arr) {
+        result.push(index);
+        index += item.length + wordSeparator.length;
       }
-      if (sr > lastR) {
-        resultR.push({ type: 'add', start: indicesR[lastR], end: indicesR[sr] });
-      }
-      lastL = sl + length;
-      lastR = sr + length;
-      resultL.push({ start: indicesL[sl], end: indicesL[lastL] });
-      resultR.push({ start: indicesR[sr], end: indicesR[lastR] });
-    }
-    if (l.length > lastL) {
-      resultL.push({ type: 'remove', start: indicesL[lastL], end: l.length });
-    }
-    if (r.length > lastR) {
-      resultR.push({ type: 'add', start: indicesR[lastR], end: r.length });
-    }
-    resultL = filterEmptyParts(resultL);
-    resultR = filterEmptyParts(resultR);
-    return [resultL, resultR];
+      result.push(index - wordSeparator.length);
+      return result;
+    };
+    const indicesL = indicesOf(lArr);
+    const indicesR = indicesOf(rArr);
+
+    const mapToOriginal = (
+      segments: InlineDiffResult[],
+      indices: number[],
+      textLength: number,
+    ): InlineDiffResult[] => segments.map(segment => ({
+      ...segment,
+      start: indices[segment.start],
+      end: segment.end === indices.length - 1
+        ? textLength
+        : indices[segment.end],
+    }));
+
+    const [wordSegmentsL, wordSegmentsR] = buildSegments(lArr, rArr, items => items.length);
+    return [
+      mapToOriginal(wordSegmentsL, indicesL, l.length),
+      mapToOriginal(wordSegmentsR, indicesR, r.length),
+    ];
   }
 
-  const iter = myersDiff(l, r);
-  for (const [sl, sr, length] of iter) {
-    if (sl > lastL) {
-      resultL.push({ type: 'remove', start: lastL, end: sl });
-    }
-    if (sr > lastR) {
-      resultR.push({ type: 'add', start: lastR, end: sr });
-    }
-    lastL = sl + length;
-    lastR = sr + length;
-    resultL.push({ start: sl, end: lastL });
-    resultR.push({ start: sr, end: lastR });
-  }
-  if (l.length > lastL) {
-    resultL.push({ type: 'remove', start: lastL, end: l.length });
-  }
-  if (r.length > lastR) {
-    resultR.push({ type: 'add', start: lastR, end: r.length });
-  }
-  resultL = filterEmptyParts(resultL);
-  resultR = filterEmptyParts(resultR);
-  return [resultL, resultR];
+  return buildSegments(l, r, items => items.length);
 };
 
 export default getInlineDiff;

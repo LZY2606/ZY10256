@@ -135,6 +135,15 @@ jsondiff run --help
 
 ![A screenshot when using CLI.](./preview-cli.png)
 
+## Testing & Diff-Model Contract
+
+The repository ships model-level consistency tests (no DOM snapshots) covering
+continuous per-side line numbers, aligned common context, overlap-free inline
+segments, fold-placeholder expansion, virtual-window geometry and a patch
+replay interpreter that rebuilds both JSON inputs. See
+[DIFF_MODEL_TESTING.md](./DIFF_MODEL_TESTING.md) for the semantics, complexity
+table and compatibility trade-offs.
+
 ## Algorithm Details
 
 Please refer to the article [JSON Diff Kit: A Combination of Several Simple Algorithms](https://blog.rexskz.info/json-diff-kit-a-combination-of-several-simple-algorithms.html?cc_lang=en).
@@ -148,7 +157,7 @@ Please refer to the article [JSON Diff Kit: A Combination of Several Simple Algo
 - [x] Optimise `Viewer` performance by adding virtual scrolling
 - [x] Add CLI tool
 - [x] Provide a Vue version of `Viewer`
-- [ ] Improve unit tests
+- [x] Improve unit tests (model-level consistency suite; see [`DIFF_MODEL_TESTING.md`](./DIFF_MODEL_TESTING.md))
 
 ## License
 
